@@ -8,8 +8,14 @@ This repository shows how to import dpa-articles to Wordpress via a plugin which
 - Activate plugin in the WP-admin-dashboard
 - Add your wireQ-Endpoint to the plugin's settings and tick the "active"-checkbox
 
+**[Details](https://github.com/dpa-newslab/dpa-digitalwires-wireq-wordpress-plugin/wiki/Plugin-Setup)**
+
 ## Wordpress cronjobs
 
 This plugin uses WP-Cron which has some drawbacks (e.g. to work properly, regular site visits are required). 
 
-To setup a real cronjob use your system's task scheduler to trigger wp-cron.php as specified [in the Wordpress-documentation](https://developer.wordpress.org/plugins/cron/hooking-wp-cron-into-the-system-task-scheduler/)
+To setup a real cronjob use your system's task scheduler to trigger wp-cron.php as specified [in the Wordpress-documentation](https://developer.wordpress.org/plugins/cron/hooking-wp-cron-into-the-system-task-scheduler/).
+
+## Customization
+
+To customize the imported article modify [post_process_post](https://github.com/dpa-newslab/dpa-digitalwires-wireq-wordpress-plugin/blob/main/includes/converter.php#L227).

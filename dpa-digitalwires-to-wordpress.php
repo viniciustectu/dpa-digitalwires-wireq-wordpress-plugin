@@ -1,7 +1,7 @@
 <?php
 /**  -*- coding: utf-8 -*-
 *
-* Copyright 2021, 2021 dpa-IT Services GmbH
+* Copyright 2022, dpa-IT Services GmbH
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -15,10 +15,10 @@
 * See the License for the specific language governing permissions and
 * limitations under the License.
 
- * Plugin Name: dpa-digitalwires-to-wordpress
- * Description: Import dpa-articles using the wireQ-api
- * Version: 1.0.0
- * Requires at least: 5.0
+* Plugin Name: dpa-digitalwires-to-wordpress
+* Description: Import dpa-articles using the wireQ-api
+* Version: 1.1.0
+* Requires at least: 5.0
 */
 
 //If this file is called directly, abort.
@@ -26,7 +26,7 @@ if (!defined('WPINC')){
     die;
 }
 
-define('PLUGIN_NAME_VERSION', '0.9.0');
+define('PLUGIN_NAME_VERSION', '1.1.0');
 
 if(!class_exists('DpaDigitalwires_Plugin')){
     class DpaDigitalwires_Plugin{

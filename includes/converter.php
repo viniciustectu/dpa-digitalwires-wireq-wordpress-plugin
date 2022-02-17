@@ -1,7 +1,7 @@
-<?php
+<?php 
 /**  -*- coding: utf-8 -*-
 *
-* Copyright 2021, 2021 dpa-IT Services GmbH
+* Copyright 2022, dpa-IT Services GmbH
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -157,10 +157,11 @@ class Converter{
                 $upload_file = wp_upload_bits($filename, null, $filedata);
                 
                 update_attached_file($existing_attachment_id, $upload_file['url']);
-                wp_generate_attachment_metadata($existing_attachment_id, $upload_file['url']);
+                $attachment_metadata = wp_generate_attachment_metadata($existing_attachment_id, $upload_file['url']);
+                wp_update_attachment_metadata($existing_attachment_id, $attachment_metadata);
                 wp_update_post($existing_attachment_id, $attachment_data);
 
-                error_log('Attachment ' . $a['urn'] . ' (v'. $a['version'] . ' updated (id ' . $existing_attachment_id . ')');
+                error_log('Attachment ' . $a['urn'] . ' (v'. $a['version'] . ' updated, id ' . $existing_attachment_id . ')');
             }else{
                 error_log('Attachment ' . $a['urn'] . ' (v'.$a['version']. ') already saved (id ' . $existing_attachment_id . ').Skipping');
             }
@@ -189,7 +190,7 @@ class Converter{
         }
     }  
 
-    private function clean_html($html){
+    private function clean_html($html, $dateline){
         $input_dom = new DOMDocument();
         $output_dom = new DOMDocument();
 
@@ -199,6 +200,14 @@ class Converter{
         libxml_clear_errors();
 
         $xpath = new DOMXpath($input_dom);
+
+        //Insert dateline
+        if(!empty($dateline)){
+            $dateline = new DOMText($dateline);
+            $firstP = $xpath->evaluate('//section/p[1]')[0];
+            $firstP->insertBefore($dateline, $firstP->firstChild);
+        }
+
         foreach($xpath->evaluate('//section/*') as $article_part){
             $node = $output_dom->importNode($article_part, true);
             $output_dom->appendChild($node);
@@ -215,11 +224,16 @@ class Converter{
         }));
     }
 
+    protected function post_process_post($dw_entry, $post){
+        //Function to add custom post configurations. Keep data previously added to meta_input (dw_urn, dw_version,...) to ensure updates will still work
+        return $post;
+    }
+
     public function add_post($dw_entry){
         $post = array(
             'post_title' => $dw_entry['headline'],
             'post_excerpt' => isset($dw_entry['teaser'])? $dw_entry['teaser'] : '',
-            'post_content' => $this->clean_html($dw_entry['article_html']),
+            'post_content' => $this->clean_html($dw_entry['article_html'], $dw_entry['dateline']),
             'post_status' => 'publish',
             'post_date_gmt' => date('Y-m-d H:i:s', strtotime($dw_entry['version_created'])),
             'guid' => $dw_entry['urn'],
@@ -231,6 +245,8 @@ class Converter{
                 'dw_updated' => $dw_entry['updated']
             )
         );
+
+        $post = $this->post_process_post($dw_entry, $post);
         
         $existing_post_id = $this->get_post_by_meta('dw_urn', $dw_entry['urn']);
         if($existing_post_id != NULL){
