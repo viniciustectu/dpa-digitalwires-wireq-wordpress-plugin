@@ -1,7 +1,7 @@
 <?php 
 /**  -*- coding: utf-8 -*-
 *
-* Copyright 2022, dpa-IT Services GmbH
+* Copyright 2023, dpa-IT Services GmbH
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -17,8 +17,10 @@
 */
 
 class Converter{
-    public function __construct(){
+    public function __construct($publish, $overwrite){
         $this->register_meta_fields();
+        $this->publish = $publish;
+        $this->overwrite = $overwrite;
     }
 
     private function register_meta_fields(){
@@ -80,6 +82,7 @@ class Converter{
 
     private function get_post_by_meta($key, $value){
         $query = get_posts([
+            'post_status' => 'any',
             'meta_query' => [
                 [
                     'key' => $key,
@@ -87,6 +90,8 @@ class Converter{
                     'value' => $value
                 ]
             ],
+            'order' => 'DESC',
+            'orderby' => 'dw_version_created',
             'fields' => 'ids',
             'posts_per_page' => 1
         ]);
@@ -95,7 +100,7 @@ class Converter{
             error_log('No existing post found');
             return NULL;
         }else{
-            error_log('Existing post found');
+            error_log('Existing post ' . $query[0] . ' found');
             return $query[0];
         }
     }
@@ -111,6 +116,8 @@ class Converter{
                     'value' => $value
                 ]
             ],
+            'order' => 'DESC',
+            'orderby' => 'dw_version_created',
             'fields' => 'ids',
             'posts_per_page' => 1
         ]);
@@ -156,8 +163,9 @@ class Converter{
         
                 $upload_file = wp_upload_bits($filename, null, $filedata);
                 
-                update_attached_file($existing_attachment_id, $upload_file['url']);
-                $attachment_metadata = wp_generate_attachment_metadata($existing_attachment_id, $upload_file['url']);
+                update_attached_file($existing_attachment_id, $upload_file['file']);
+
+                $attachment_metadata = wp_generate_attachment_metadata($existing_attachment_id, $upload_file['file']);
                 wp_update_attachment_metadata($existing_attachment_id, $attachment_metadata);
                 wp_update_post($existing_attachment_id, $attachment_data);
 
@@ -177,11 +185,11 @@ class Converter{
             
             $upload_file = wp_upload_bits($filename, null, $filedata);
     
-            $attachment_id = wp_insert_attachment($attachment_data, $upload_file['url']);
+            $attachment_id = wp_insert_attachment($attachment_data, $upload_file['file']);
     
             if(!is_wp_error($attachment_id)){
                 require_once(ABSPATH . 'wp-admin/includes/image.php');
-                $attachment_data = wp_generate_attachment_metadata($attachment_id, $upload_file['url']);
+                $attachment_data = wp_generate_attachment_metadata($attachment_id, $upload_file['file']);
                 wp_update_attachment_metadata($attachment_id, $attachment_data);
                 
                 error_log('Attachment ' . $a['urn'] . ' (v' . $a['version'] . ') added as id ' . $attachment_id);
@@ -190,7 +198,7 @@ class Converter{
         }
     }  
 
-    private function clean_html($html, $dateline){
+    private function clean_html($html, $dateline, $associations){
         $input_dom = new DOMDocument();
         $output_dom = new DOMDocument();
 
@@ -208,7 +216,11 @@ class Converter{
             $firstP->insertBefore($dateline, $firstP->firstChild);
         }
 
+
         foreach($xpath->evaluate('//section/*') as $article_part){
+            if($article_part->tagName == "dnl-image"){
+                $article_part->setAttribute("src", wp_get_attachment_url($associations[$article_part->getAttribute("ref")]));
+            }
             $node = $output_dom->importNode($article_part, true);
             $output_dom->appendChild($node);
         }
@@ -229,12 +241,82 @@ class Converter{
         return $post;
     }
 
+    private function add_associations($associations, $parent_urn){
+        $association_ids = array();
+        $feature_image_id;
+        foreach($associations as &$a){
+            $association_id = $this->add_association($a, $parent_urn);
+            
+            if($association_id !== False){
+                $association_ids[$a["urn"]] = $association_id;                        
+
+                if($a['is_featureimage']){
+                    $feature_image_id = $association_id;
+                }
+            }else{
+                error_log('Importing association ' . $a['urn'] . ' failed.');
+            }
+        }
+        return array($association_ids, $feature_image_id);
+    }
+
+    private function create_post($prepared_post, $dw_entry, $autopublish){
+        list($association_ids, $feature_image_id) = $this->add_associations($dw_entry['associations'], $dw_entry['urn']);
+
+        $prepared_post['post_status'] = $autopublish? 'publish' : 'draft';
+        
+        $prepared_post['post_content'] = $this->clean_html($dw_entry['article_html'], $dw_entry['dateline'], $association_ids);
+        $prepared_post = $this->post_process_post($dw_entry, $prepared_post);
+
+        $resp = wp_insert_post($prepared_post);
+        if($resp === 0 | is_wp_error($resp)){
+            throw new Exception('Inserting post for urn ' . $dw_entry['urn'] . ' failed.');
+        }else{
+            if(!empty($feature_image_id)){
+                set_post_thumbnail($resp, $feature_image_id);
+            }
+
+            if($autopublish){
+                wp_publish_post($resp);
+            }
+            error_log('Inserting post with new id ' . $resp . ' done.');
+            return true;
+        }
+    }
+
+    private function update_post($post_id, $prepared_post, $dw_entry){
+        list($association_ids, $feature_image_id) = $this->add_associations($dw_entry['associations'], $dw_entry['urn']);
+
+        set_post_thumbnail($post_id, $feature_image_id);
+        $prepared_post['post_content'] = $this->clean_html($dw_entry['article_html'], $dw_entry['dateline'], $association_ids);
+        $prepared_post = $this->post_process_post($dw_entry, $prepared_post);
+                
+        $resp = wp_update_post($prepared_post);
+        if($resp === 0 | is_wp_error($resp)){
+            throw new Exception('Updating post ' . $prepared_post['ID'] . ' failed.');
+        }else{
+            if($this->publish){
+                wp_publish_post($resp);
+            }
+            error_log('Updating post ' . $prepared_post['ID'] . ' done.');
+            return true;
+        }
+    }
+
+    private function should_overwrite($post_id){
+        if($this->overwrite){
+            return true;
+        }else{
+            $last_id = get_post_meta($post_id, '_edit_last', true );
+            $is_update_draft = get_post_meta($post_id, 'dw_is_update_draft');
+            return empty($last_id) and empty($is_update_draft);
+        }
+    }
+
     public function add_post($dw_entry){
         $post = array(
             'post_title' => $dw_entry['headline'],
             'post_excerpt' => isset($dw_entry['teaser'])? $dw_entry['teaser'] : '',
-            'post_content' => $this->clean_html($dw_entry['article_html'], $dw_entry['dateline']),
-            'post_status' => 'publish',
             'post_date_gmt' => date('Y-m-d H:i:s', strtotime($dw_entry['version_created'])),
             'guid' => $dw_entry['urn'],
             'tags_input' => $this->get_tags($dw_entry['categories']),
@@ -245,74 +327,31 @@ class Converter{
                 'dw_updated' => $dw_entry['updated']
             )
         );
-
-        $post = $this->post_process_post($dw_entry, $post);
         
         $existing_post_id = $this->get_post_by_meta('dw_urn', $dw_entry['urn']);
-        if($existing_post_id != NULL){
-            $post['ID'] = $existing_post_id;
-
-            $post_meta = get_post_meta($post['ID']);
+        if($existing_post_id != NULL){           
+            $post_meta = get_post_meta($existing_post_id);
             
             if(
                 $dw_entry['version'] >= $post_meta['dw_version'][0] &&
                 strcmp($dw_entry['version_created'], $post_meta['dw_version_created'][0]) >= 0 &&
                 strcmp($dw_entry['updated'], $post_meta['dw_updated'][0]) > 0
             ){
-                error_log('Updating post with id ' . $post['ID']);
-                
-                $associations = array();
-                
-                foreach($dw_entry['associations'] as &$a){
-                    $association_id = $this->add_association($a, $dw_entry['urn']);
-                    
-                    if($association_id !== False){
-                        array_push($associations, $association_id);
-
-                        if($a['is_featureimage']){
-                            set_post_thumbnail($post['ID'], $association_id);
-                        }
-                    }else{
-                        error_log('Importing association ' . $dw_entry['urn'] . ' failed.');
-                    }
-                }
-
-                $resp = wp_update_post($post);
-                if($resp === 0 | is_wp_error($resp)){
-                    throw new Exception('Updating post ' . $post['ID'] . ' failed.');
+                if($this->should_overwrite($existing_post_id)){
+                    $post['ID'] = $existing_post_id;
+                    error_log('Updating post with id ' . $post['ID']);
+                    $this->update_post($post['ID'], $post, $dw_entry);
                 }else{
-                    error_log('Updating post ' . $post['ID'] . ' done.');
+                    $post['post_title'] = "dpa-UPDATE " . $post['post_title'];
+                    $post['meta_input']['dw_is_update_draft'] = true;
+                    $this->create_post($post, $dw_entry, false);
                 }
             }else{
                 error_log('No updates to previous version. Skipping');
             }
         }else{
             error_log('Inserting post');
-            $associations = array();
-            $feature_image_id;
-
-            foreach($dw_entry['associations'] as &$a){
-                $association_id = $this->add_association($a, $dw_entry['urn']);
-                if($association_id !== False){
-                    array_push($associations, $association_id);
-
-                    if($a['is_featureimage']){
-                        $feature_image_id = $association_id;
-                    }
-                }else{
-                    error_log('Importing association ' . $dw_entry['urn'] . ' failed.');
-                }
-            }
-
-            $resp = wp_insert_post($post);
-            if($resp === 0 | is_wp_error($resp)){
-                throw new Exception('Inserting post for urn ' . $dw_entry['urn'] . ' failed.');
-            }else{
-                if(!empty($feature_image_id)){
-                    set_post_thumbnail($resp, $feature_image_id);
-                }
-                error_log('Inserting post with new id ' . $resp . ' done.');
-            }
+            $this->create_post($post, $dw_entry, $this->publish);
         }
     }
 

@@ -1,7 +1,7 @@
 <?php
 /**  -*- coding: utf-8 -*-
 *
-* Copyright 2022, dpa-IT Services GmbH
+* Copyright 2023, dpa-IT Services GmbH
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 
 * Plugin Name: dpa-digitalwires-to-wordpress
 * Description: Import dpa-articles using the wireQ-api
-* Version: 1.1.0
+* Version: 1.2.0
 * Requires at least: 5.0
 */
 
@@ -26,7 +26,7 @@ if (!defined('WPINC')){
     die;
 }
 
-define('PLUGIN_NAME_VERSION', '1.1.0');
+define('PLUGIN_NAME_VERSION', '1.2.0');
 
 if(!class_exists('DpaDigitalwires_Plugin')){
     class DpaDigitalwires_Plugin{
@@ -38,6 +38,7 @@ if(!class_exists('DpaDigitalwires_Plugin')){
             add_action('init', array($this, 'setup'));
         
             register_deactivation_hook(__FILE__, array($this, 'deactivate'));
+
         }
 
         public function setup(){
@@ -47,6 +48,20 @@ if(!class_exists('DpaDigitalwires_Plugin')){
             add_action('update_option_dpa-digitalwires', array($this, 'update_settings'));
             add_filter('cron_schedules', array($this, 'dw_schedule'));
             add_action('dpa_digitalwires_cron', array($this, 'import_articles'));
+            add_filter('wp_kses_allowed_html', array($this, 'allow_dnl_components'));
+        }
+
+        public function allow_dnl_components($allowed_tags){
+            foreach(["dnl-dwchart", "dnl-wgchart", "dnl-image", "dnl-twitterembed", "dnl-youtubeembed"] as $tag){
+                $allowed_tags[$tag] = array(
+                    "href" => true,
+                    "src" => true,
+                    "caption" => true, 
+                    "creditline" => true,
+                    "ref" => true
+                );
+            }
+            return $allowed_tags;
         }
 
         public function deactivate(){
@@ -94,12 +109,16 @@ if(!class_exists('DpaDigitalwires_Plugin')){
         }
 
         private function register_settings(){
+            $default_settings = array(
+                'dw_endpoint' => null,
+                'dw_cron_time' => 5,
+                'dw_active' => 0,
+                'dw_publish' => 1,
+                'dw_overwrite' => 1
+            );
+
             register_setting('dpa-digitalwires', 'dpa-digitalwires', array(
-                'default' => array(
-                    'dw_endpoint' => null,
-                    'dw_cron_time' => 5,
-                    'dw_active' => false,
-                ),
+                'default' => $default_settings,
                 'sanitize_callback' => array($this, 'validate_input')
             ));
 
@@ -126,12 +145,14 @@ if(!class_exists('DpaDigitalwires_Plugin')){
                 'dw_cron_time' => $this->validate_cron_time($input['dw_cron_time'], $current_config['dw_cron_time'])
             );
 
-            if(!empty($input['dw_active']) && !empty($output['dw_endpoint'])){                
-                $output['dw_active'] = $this->validate_active($input['dw_active']);
+            if(!empty($output['dw_endpoint'])){                
+                $output['dw_active'] = $this->validate_checkbox('dw_active', $input);
             }else{
                 $output['dw_active'] = false;
             }
 
+            $output['dw_publish'] = $this->validate_checkbox('dw_publish', $input);
+            $output['dw_overwrite'] = $this->validate_checkbox('dw_overwrite', $input);
             return apply_filters('dpa-digitalwires', $output, $input);
         }
 
@@ -157,8 +178,12 @@ if(!class_exists('DpaDigitalwires_Plugin')){
             }
         }
 
-        private function validate_active($input){
-            return apply_filters('dw_active', $input === 'on', $input);
+        private function validate_checkbox($name, $input){
+            if(empty($input[$name])){
+                return false;
+            }else{
+                return apply_filters($name, $input[$name] === 'on' || $input[$name], $input[$name]);
+            }
         }
 
         private function load_dependencies(){
@@ -173,7 +198,7 @@ if(!class_exists('DpaDigitalwires_Plugin')){
             $this->admin_page = new AdminPage();
 
             require_once plugin_dir_path(__FILE__) . '/includes/converter.php';
-            $this->converter = new Converter();
+            $this->converter = new Converter($digitalwires_option['dw_publish'], $digitalwires_option['dw_overwrite']);
         } 
 
         public function import_articles(){
@@ -208,6 +233,7 @@ if(!class_exists('DpaDigitalwires_Plugin')){
                         $dw_stats['last_exception_urn'] = $entry['urn'];
                         $dw_stats['last_exception_timestamp'] = date("d.m.Y, H:i:s T", strtotime($entry['version_created']));
                     }
+                    
                     $this->api->remove_from_queue($entry['_wireq_receipt']);
                 }
             }while(!empty($entries));

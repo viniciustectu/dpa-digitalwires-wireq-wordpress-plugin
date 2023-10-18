@@ -1,7 +1,7 @@
 <?php
 /**  -*- coding: utf-8 -*-
 *
-* Copyright 2022, dpa-IT Services GmbH
+* Copyright 2023, dpa-IT Services GmbH
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -69,10 +69,28 @@ class AdminPage{
             "dpa-digitalwires-section",
             $cur_settings["dw_active"]
         );
+
+        add_settings_field(
+            "dpa-digitalwires[dw_publish]",
+            "Artikel direkt publizieren",
+            array(&$this, "form_publish_html"),
+            "dpa-digitalwires",
+            "dpa-digitalwires-section",
+            $cur_settings["dw_publish"]
+        );
+
+        add_settings_field(
+            "dpa-digitalwires[dw_overwrite]",
+            "dpa-Updates dürfen in Wordpress bearbeitete Artikel überschreiben",
+            array(&$this, "form_overwrite_html"),
+            "dpa-digitalwires",
+            "dpa-digitalwires-section",
+            $cur_settings["dw_overwrite"]
+        );
     }
 
     public function admin_page_description(){
-        echo '<p>Registrieren Sie sich zunächst am <a href="https://api-portal.dpa-newslab.com/" target="_blank">dpa-API-Portal</a>, um einen eigenen wireQ-API-Endpunkt freizuschalten und ihre Wordpress-Instanz mit Inhalte beliefern zu lassen</p>';
+        echo '<p>Registrieren Sie sich zunächst am <a href="https://api-portal.dpa-newslab.com/" target="_blank">dpa-API-Portal</a>, um einen eigenen wireQ-API-Endpunkt freizuschalten und ihre Wordpress-Instanz mit Inhalten beliefern zu lassen.</p>';
     }
 
     public function form_endpoint_html($cur_val){
@@ -88,6 +106,14 @@ class AdminPage{
 
     public function form_active_html($cur_val){
         echo '<input type="checkbox" name="dpa-digitalwires[dw_active]" id="dw_active" ' . checked(true, $cur_val, false) . ' />';
+    }
+
+    public function form_publish_html($cur_val){
+        echo '<input type="checkbox" name="dpa-digitalwires[dw_publish]" id="dw_publish" ' . checked(true, $cur_val,  false) . ' />';
+    }
+
+    public function form_overwrite_html($cur_val){
+        echo '<input type="checkbox" name="dpa-digitalwires[dw_overwrite]" id="dw_overwrite" ' . checked(true, $cur_val,  false) . ' />';
     }
 
     public function admin_page_html(){

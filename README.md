@@ -16,6 +16,10 @@ This plugin uses WP-Cron which has some drawbacks (e.g. to work properly, regula
 
 To setup a real cronjob use your system's task scheduler to trigger wp-cron.php as specified [in the Wordpress-documentation](https://developer.wordpress.org/plugins/cron/hooking-wp-cron-into-the-system-task-scheduler/).
 
+## Embeds
+
+The plugin imports Web Components contained in dpa-articles as HTML. Therefore needed HTML-tags are allowed. To render the components you have to define them. This could be done by loading [dnl_embeds.js](https://github.com/dpa-newslab/dpa-digitalwires-embeds) in your template. You can directly use the [pre-built dnl_embeds.js](https://github.com/dpa-newslab/dpa-digitalwires-embeds/blob/main/dist/js/dnl_embeds.js). For details on how to add scripts to a theme please refer to the [Wordpress-documentation](https://developer.wordpress.org/themes/basics/including-css-javascript/#enqueuing-scripts-and-styles).
+
 ## Customization
 
 To customize the imported article modify [post_process_post](https://github.com/dpa-newslab/dpa-digitalwires-wireq-wordpress-plugin/blob/main/includes/converter.php#L227).
