@@ -17,6 +17,10 @@
 */
 
 class Converter{
+    private $publish; 
+    private $overwrite;
+    private $url;
+
     public function __construct($publish, $overwrite){
         $this->register_meta_fields();
         $this->publish = $publish;
@@ -243,7 +247,7 @@ class Converter{
 
     private function add_associations($associations, $parent_urn){
         $association_ids = array();
-        $feature_image_id;
+        $feature_image_id = null;
         foreach($associations as &$a){
             $association_id = $this->add_association($a, $parent_urn);
             

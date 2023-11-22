@@ -17,7 +17,7 @@
 
 * Plugin Name: dpa-digitalwires-to-wordpress
 * Description: Import dpa-articles using the wireQ-api
-* Version: 1.2.0
+* Version: 1.2.1
 * Requires at least: 5.0
 */
 
@@ -42,8 +42,8 @@ if(!class_exists('DpaDigitalwires_Plugin')){
         }
 
         public function setup(){
-            $this->load_dependencies();
             $this->register_settings();
+            $this->load_dependencies();
 
             add_action('update_option_dpa-digitalwires', array($this, 'update_settings'));
             add_filter('cron_schedules', array($this, 'dw_schedule'));
