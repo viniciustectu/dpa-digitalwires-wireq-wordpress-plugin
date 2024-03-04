@@ -22,4 +22,16 @@ The plugin imports Web Components contained in dpa-articles as HTML. Therefore n
 
 ## Customization
 
-To customize the imported article modify [post_process_post](https://github.com/dpa-newslab/dpa-digitalwires-wireq-wordpress-plugin/blob/main/includes/converter.php#L227).
+To customize the imported article use the `dpa_digitalwires_post_process_post`-filter, e.g. by adding the following snippet to the `functions.php` of your theme: 
+
+```
+function modify_digitalwires_post($value, $dw_entry){
+	$value["post_title"] = $value["post_title"] . " (dpa)";
+	return $value;
+}
+add_filter("dpa_digitalwires_post_process_post", "modify_digitalwires_post", 10, 2);
+```
+
+This will add ` (dpa)` to the title of every imported post.
+
+For customization reaching further than a modification of the inserted post you might want to modify the plugin code directly. The [post_process_post](https://github.com/dpa-newslab/dpa-digitalwires-wireq-wordpress-plugin/blob/main/includes/converter.php#L243)-function might be a good starting point.

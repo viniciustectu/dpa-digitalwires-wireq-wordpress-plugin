@@ -1,7 +1,7 @@
 <?php 
 /**  -*- coding: utf-8 -*-
 *
-* Copyright 2023, dpa-IT Services GmbH
+* Copyright 2024, dpa-IT Services GmbH
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -241,8 +241,8 @@ class Converter{
     }
 
     protected function post_process_post($dw_entry, $post){
-        //Function to add custom post configurations. Keep data previously added to meta_input (dw_urn, dw_version,...) to ensure updates will still work
-        return $post;
+        //Filter to add custom post configurations. Keep data previously added to meta_input (dw_urn, dw_version,...) to ensure updates will still work
+        return apply_filters('dpa_digitalwires_post_process_post', $post, $dw_entry);
     }
 
     private function add_associations($associations, $parent_urn){
@@ -359,7 +359,7 @@ class Converter{
         }
     }
 
-    public function remove_post($entry){
+    public function remove_post($dw_entry){
         $existing_post_id = $this->get_post_by_meta('dw_urn', $dw_entry['urn']);
         
         error_log('Deleting post ' . $existing_post_id . ' for urn ' . $dw_entry['urn']);

@@ -1,7 +1,7 @@
 <?php
 /**  -*- coding: utf-8 -*-
 *
-* Copyright 2023, dpa-IT Services GmbH
+* Copyright 2024, dpa-IT Services GmbH
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 
 * Plugin Name: dpa-digitalwires-to-wordpress
 * Description: Import dpa-articles using the wireQ-api
-* Version: 1.2.1
+* Version: 1.3.0
 * Requires at least: 5.0
 */
 
@@ -26,7 +26,7 @@ if (!defined('WPINC')){
     die;
 }
 
-define('PLUGIN_NAME_VERSION', '1.2.0');
+define('PLUGIN_NAME_VERSION', '1.3.0');
 
 if(!class_exists('DpaDigitalwires_Plugin')){
     class DpaDigitalwires_Plugin{
@@ -166,9 +166,6 @@ if(!class_exists('DpaDigitalwires_Plugin')){
         }
 
         private function validate_endpoint($input, $old){
-            $endpoint;
-            $valid = true;
-            
             if(!empty($input) && substr($input, 0, 37) != 'https://digitalwires.dpa-newslab.com/'){
                 $valid = false;
                 add_settings_error('dpa-digitalwires', 'invalid_url', 'URL ist kein bekannter dpa-digitalwires-Endpunkt', 'error');
@@ -205,8 +202,6 @@ if(!class_exists('DpaDigitalwires_Plugin')){
             error_log('Fetching articles');
             
             $fetch_num = 0;
-            $entries;
-
             $dw_stats = get_option("dw_stats");
             
             do{
