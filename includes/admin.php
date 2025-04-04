@@ -45,7 +45,7 @@ class AdminPage{
 
         add_settings_field(
             "dpa-digitalwires[dw_endpoint]",
-            "wireQ-Endpunkt",
+            "wireQ endpoint",
             array(&$this, "form_endpoint_html"),
             "dpa-digitalwires",
             "dpa-digitalwires-section",
@@ -54,7 +54,7 @@ class AdminPage{
 
         add_settings_field(
             "dpa-digitalwires[dw_cron_time]",
-            "Abfragezyklus in Minuten",
+            "Query cycle in minutes",
             array(&$this, "form_cron_time_html"),
             "dpa-digitalwires",
             "dpa-digitalwires-section",
@@ -63,7 +63,7 @@ class AdminPage{
 
         add_settings_field(
             "dpa-digitalwires[dw_active]",
-            "Aktiviert",
+            "Activated",
             array(&$this, "form_active_html"),
             "dpa-digitalwires",
             "dpa-digitalwires-section",
@@ -72,7 +72,7 @@ class AdminPage{
 
         add_settings_field(
             "dpa-digitalwires[dw_publish]",
-            "Artikel direkt publizieren",
+            "Publish articles directly",
             array(&$this, "form_publish_html"),
             "dpa-digitalwires",
             "dpa-digitalwires-section",
@@ -81,7 +81,7 @@ class AdminPage{
 
         add_settings_field(
             "dpa-digitalwires[dw_overwrite]",
-            "dpa-Updates dürfen in Wordpress bearbeitete Artikel überschreiben",
+            "DPA updates may overwrite articles edited in Wordpress",
             array(&$this, "form_overwrite_html"),
             "dpa-digitalwires",
             "dpa-digitalwires-section",
@@ -90,7 +90,7 @@ class AdminPage{
     }
 
     public function admin_page_description(){
-        echo '<p>Registrieren Sie sich zunächst am <a href="https://api-portal.dpa-newslab.com/" target="_blank">dpa-API-Portal</a>, um einen eigenen wireQ-API-Endpunkt freizuschalten und ihre Wordpress-Instanz mit Inhalten beliefern zu lassen.</p>';
+        echo '<p>First, register on the <a href="https://api-portal.dpa-newslab.com/" target="_blank">dpa-API-Portal</a>, to activate your own wireQ API endpoint and have your WordPress instance supplied with content.</p>';
     }
 
     public function form_endpoint_html($cur_val){
@@ -127,14 +127,14 @@ class AdminPage{
                     <?php submit_button(); ?>
                 </form>
                 <code style="display: block;width: fit-content;">
-                    Letzte Abfrage: <?php echo $dw_stats['last_run']; ?>
+                    Last Query: <?php echo $dw_stats['last_run']; ?>
                     <?php if(isset($dw_stats['last_import_title'])){ ?>
                         <br><br>
-                        Letzter importierter Artikel: <?php echo $dw_stats['last_import_title'] ?> (<?php echo $dw_stats['last_import_urn'] ?>, <?php echo $dw_stats['last_import_timestamp'] ?>)
+                        Last imported article: <?php echo $dw_stats['last_import_title'] ?> (<?php echo $dw_stats['last_import_urn'] ?>, <?php echo $dw_stats['last_import_timestamp'] ?>)
                     <?php } ?>
                     <?php if(isset($dw_stats['last_exception_message'])){ ?>
                         <br><br>
-                        Letzter Import-Fehler: <?php echo $dw_stats['last_exception_message'] ?> (aufgetreten bei <?php echo $dw_stats['last_exception_urn'] ?>, <?php echo $dw_stats['last_exception_timestamp'] ?>)
+                        Last import error: <?php echo $dw_stats['last_exception_message'] ?> (occurred at <?php echo $dw_stats['last_exception_urn'] ?>, <?php echo $dw_stats['last_exception_timestamp'] ?>)
                     <?php } ?>
                 </code>
             </div>
