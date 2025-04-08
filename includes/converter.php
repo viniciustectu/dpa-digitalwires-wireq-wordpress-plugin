@@ -214,11 +214,11 @@ class Converter{
         $xpath = new DOMXpath($input_dom);
 
         //Insert dateline
-        if(!empty($dateline)){
-            $dateline = new DOMText($dateline);
-            $firstP = $xpath->evaluate('//section/p[1]')[0];
-            $firstP->insertBefore($dateline, $firstP->firstChild);
-        }
+        //if(!empty($dateline)){
+        //    $dateline = new DOMText($dateline);
+        //    $firstP = $xpath->evaluate('//section/p[1]')[0];
+        //    $firstP->insertBefore($dateline, $firstP->firstChild);
+        //}
 
 
         foreach($xpath->evaluate('//section/*') as $article_part){
@@ -239,9 +239,85 @@ class Converter{
             return in_array($v['type'], array('dnltype:dpasubject', 'dnltype:keyword', 'dnltype:geosubject'));
         }));
     }
-
+    
+    private function get_desk_category_ids($categories) {
+        // Ensure necessary taxonomy functions are loaded.
+        if ( ! function_exists( 'wp_create_category' ) ) {
+            require_once( ABSPATH . 'wp-admin/includes/taxonomy.php' );
+        }
+        
+        // Validate input.
+        if ( ! is_array( $categories ) ) {
+            error_log("get_desk_category_ids: Provided categories is not an array.");
+            return null;
+        }
+    
+        try {
+            $desk_categories = array_filter($categories, function($v) {
+                return isset($v['type']) && $v['type'] === 'dnltype:desk';
+            });
+            
+            $ids = array();
+            foreach ($desk_categories as $desk) {
+                if ( isset($desk['name']) && !empty($desk['name']) ) {
+                    $desk_name = $desk['name']; // Example: "Wirtschaft"
+                    $cat_id = get_cat_ID($desk_name);
+                    if ( ! $cat_id ) {
+                        // Create the category if it doesn't exist.
+                        $cat_id = wp_create_category($desk_name);
+                        if ( is_wp_error( $cat_id ) ) {
+                            error_log("Failed creating category '{$desk_name}': " . $cat_id->get_error_message());
+                            return null;
+                        }
+                    }
+                    $ids[] = $cat_id;
+                }
+            }
+            return $ids;
+        } catch ( Exception $e ) {
+            error_log("Exception in get_desk_category_ids: " . $e->getMessage());
+            return null;
+        }
+    }
+    
     protected function post_process_post($dw_entry, $post){
         //Filter to add custom post configurations. Keep data previously added to meta_input (dw_urn, dw_version,...) to ensure updates will still work
+        
+        try {
+            // Extract the desk category IDs from the dw_entry categories.
+            $desk_cat_ids = $this->get_desk_category_ids($dw_entry['categories']);
+            if ( $desk_cat_ids === null ) {
+                error_log("post_process_post: get_desk_category_ids returned null.");
+            }
+            
+            // If we got one or more desk categories, assign them to the post.
+            if ( ! empty( $desk_cat_ids ) ) {
+                $post["post_category"] = $desk_cat_ids;
+            }
+			
+			// Update Yoast SEO meta fields.
+			// Meta description: use teaser text.
+			if ( isset($dw_entry['teaser']) ) {
+				$post["meta_input"]["_yoast_wpseo_metadesc"] = $dw_entry['teaser'];
+			}
+
+			// SEO title: use headline.
+			if ( isset($dw_entry['headline']) ) {
+				$post["meta_input"]["_yoast_wpseo_title"] = $dw_entry['headline'];
+			}
+
+			// Focus keyword: if available in your data.
+			if ( isset($dw_entry['kicker']) ) {
+				$post["meta_input"]["_yoast_wpseo_focuskw"] = $dw_entry['kicker'];
+			}
+			
+        } catch ( Exception $e ) {
+            error_log("Exception in post_process_post: " . $e->getMessage());
+        }
+
+        // Process desk categories and insert them in post
+        $post["post_category"] = $this->get_desk_category_ids($dw_entry['categories']);
+
         return apply_filters('dpa_digitalwires_post_process_post', $post, $dw_entry);
     }
 
